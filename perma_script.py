@@ -13,12 +13,12 @@ from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
 # Settings
-pd.set_option("display.max_columns", 4)
+pd.set_option("display.max_columns", 6)
 # Constants
 IMG_DIR = Path.cwd() / "perma_scores"
 # Define the group ids and the days for which you want to fetch the data
 group_ids = [1]
-days = ["2022-12-05"]
+dates = ["2022-12-12"]
 send: bool = False
 aggregate_func = np.mean
 sender = "moritz96@mit.edu"
@@ -59,7 +59,9 @@ def join_two_dataframes(
 
 
 def extract_date_from_timestamp(df: pd.DataFrame) -> pd.DataFrame:
-    df["Day"] = df["Zeitstempel"].to_string().split(" ")[3]
+    df["Date"] = [
+        timestamp.split(" ")[0] for timestamp in df["Zeitstempel"].astype("string")
+    ]
     return df
 
 
@@ -121,7 +123,7 @@ def send_mail(image_file: Path, recipients: list[str], sender: str = sender) -> 
 
 
 def create_plot(df: pd.DataFrame, key: str) -> None:
-    def create_axline(
+    def create_axhline(
         values, lowerbound, upperbound, text: str, color: str = "green"
     ) -> None:
         mean = values[lowerbound:upperbound].mean()
@@ -140,19 +142,19 @@ def create_plot(df: pd.DataFrame, key: str) -> None:
             alpha=0.7,
         )
 
-    _, ax = plt.subplots()
+    fig, ax = plt.subplots()
     x = np.arange(1, len(df.values) + 1)
     y = df.values
     ax.plot(x, y)
     plt.xlim(1, 16)
     plt.ylim(0, 8)
 
-    create_axline(y, 0, 16, text="Average Score: ", color="black")
-    create_axline(y, 0, 3, text="P-Score: ")
-    create_axline(y, 3, 7, text="E-Score: ")
-    create_axline(y, 7, 10, text="R-Score: ")
-    create_axline(y, 10, 14, text="M-Score: ")
-    create_axline(y, 14, 16, text="A-Score: ")
+    create_axhline(y, 0, 16, text="Average Score: ", color="black")
+    create_axhline(y, 0, 3, text="P-Score: ")
+    create_axhline(y, 3, 7, text="E-Score: ")
+    create_axhline(y, 7, 10, text="R-Score: ")
+    create_axhline(y, 10, 14, text="M-Score: ")
+    create_axhline(y, 14, 16, text="A-Score: ")
 
     plt.title(f"Your overall Team PERMA score on {key.split('_')[2]}")
     plt.xlabel("PERMA Question")
@@ -160,7 +162,7 @@ def create_plot(df: pd.DataFrame, key: str) -> None:
     plt.grid(True)
     plt.show()
 
-    plt.savefig(IMG_DIR / f"{key}.png")
+    fig.savefig(IMG_DIR / f"{key}.png")
 
 
 def main():
@@ -181,12 +183,12 @@ def main():
     rename_df_columns(df)
 
     # Compute Team PERMA, create plot and send email to team members
-    for day in days:
+    for date in dates:
         for g_id in group_ids:
-            key = f"group_{g_id}_{day}"
+            key = f"group_{g_id}_{date}"
 
             df_avg = compute_team_perma(
-                df=df[(df["Group_IDs"] == g_id) & (df["Day"] == day)],
+                df=df[(df["Group_IDs"] == g_id) & (df["Date"] == date)],
                 aggregate_func=aggregate_func,
             )
 
