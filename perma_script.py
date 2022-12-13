@@ -16,9 +16,9 @@ from pydrive.drive import GoogleDrive
 pd.set_option("display.max_columns", 6)
 # Constants
 IMG_DIR = Path.cwd() / "perma_scores"
-# Define the group ids and the days for which you want to fetch the data
+# Define the group ids and the date for which you want to fetch the data
 group_ids = [1]
-dates = ["2022-12-12"]
+date = "2022-12-12"
 send: bool = False
 aggregate_func = np.mean
 sender = "moritz96@mit.edu"
@@ -48,8 +48,8 @@ def read_file_from_gdrive(gdrive: GoogleDrive, file_id: str) -> None:
     )
 
 
-def compute_team_perma(df: pd.DataFrame, aggregate_func: Callable) -> pd.DataFrame:
-    return df.iloc[:, 4:20].apply(aggregate_func, axis=0)
+def compute_perma(data: pd.DataFrame, aggregate_func: Callable) -> pd.DataFrame:
+    return data.apply(aggregate_func, axis=0)
 
 
 def join_two_dataframes(
@@ -94,21 +94,24 @@ def rename_df_columns(df: pd.DataFrame) -> None:
     )
 
 
-def send_mail(image_file: Path, recipients: list[str], sender: str = sender) -> None:
+def send_mail(
+    image_files: list[Path], recipients: list[str], sender: str = sender
+) -> None:
     # Create the container (outer) email message.
     msg = MIMEMultipart()
-    msg["Subject"] = "This is your Teams's PERMA score for today!"
-    # me == the sender's email address
-    # recipients = the list of all recipients' email addresses
+    msg[
+        "Subject"
+    ] = "This is your Team PERMA score compared to the overall cohort for today!"
     msg["From"] = sender
     msg["To"] = ", ".join(recipients)
-    msg.preamble = "Team PERMA score"
+    msg.preamble = "PERMA scores"
 
     # Open the files in binary mode.  Let the MIMEImage class automatically
     # guess the specific image type.
-    with open(image_file, "rb") as fp:
-        img = MIMEImage(fp.read())
-    msg.attach(img)
+    for img in image_files:
+        with open(img, "rb") as fp:
+            img = MIMEImage(fp.read())
+        msg.attach(img)
 
     # Send the email via the MIT SMTP server
     # (http://kb.mit.edu/confluence/pages/viewpage.action?pageId=155282952)
@@ -122,9 +125,13 @@ def send_mail(image_file: Path, recipients: list[str], sender: str = sender) -> 
         print(exc)
 
 
-def create_plot(df: pd.DataFrame, key: str) -> None:
+def create_plot(df: pd.DataFrame, key: str, title: str) -> None:
     def create_axhline(
-        values, lowerbound, upperbound, text: str, color: str = "green"
+        values: np.ndarray,
+        lowerbound: int,
+        upperbound: int,
+        text: str,
+        color: str = "green",
     ) -> None:
         mean = values[lowerbound:upperbound].mean()
 
@@ -156,13 +163,13 @@ def create_plot(df: pd.DataFrame, key: str) -> None:
     create_axhline(y, 10, 14, text="M-Score: ")
     create_axhline(y, 14, 16, text="A-Score: ")
 
-    plt.title(f"Your overall Team PERMA score on {key.split('_')[2]}")
+    plt.title(title)
     plt.xlabel("PERMA Question")
     plt.ylabel("PERMA Score")
     plt.grid(True)
     plt.show()
 
-    fig.savefig(IMG_DIR / f"{key}.png")
+    fig.savefig(str(IMG_DIR / f"{key}.png"))
 
 
 def main():
@@ -182,23 +189,36 @@ def main():
     df = extract_date_from_timestamp(df)
     rename_df_columns(df)
 
-    # Compute Team PERMA, create plot and send email to team members
-    for date in dates:
+    cohort_perma = pd.DataFrame()
+
+    # Compute Team PERMA and create plot
+    for g_id in group_ids:
+        key = f"group_{g_id}_{date}"
+
+        team_perma = compute_perma(
+            data=df[(df["Group_IDs"] == g_id) & (df["Date"] == date)].iloc[:, 4:20],
+            aggregate_func=aggregate_func,
+        )
+        cohort_perma = pd.concat([cohort_perma, team_perma.to_frame().T])
+        create_plot(team_perma, key, title=f"Your overall Team PERMA score on {date}")
+
+    # Compute the overall PERMA
+    key = f"cohort_{date}"
+    overall_perma = compute_perma(data=cohort_perma, aggregate_func=aggregate_func)
+    create_plot(overall_perma, key, title=f"The overall cohort PERMA score on {date}")
+
+    # Send email to the recipients
+    if send:
+        cohort_perma = IMG_DIR / f"cohort_{date}.png"
+
         for g_id in group_ids:
             key = f"group_{g_id}_{date}"
+            team_perma = IMG_DIR / f"{key}.png"
 
-            df_avg = compute_team_perma(
-                df=df[(df["Group_IDs"] == g_id) & (df["Date"] == date)],
-                aggregate_func=aggregate_func,
+            send_mail(
+                image_files=[team_perma, cohort_perma],
+                recipients=get_email_recipients(df, g_id),
             )
-
-            create_plot(df_avg, key)
-
-            if send:
-                send_mail(
-                    image_file=IMG_DIR / f"{key}.png",
-                    recipients=get_email_recipients(df, g_id),
-                )
 
 
 if __name__ == "__main__":
