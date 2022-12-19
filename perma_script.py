@@ -97,11 +97,15 @@ def rename_df_columns(df: pd.DataFrame) -> None:
 
 def aggregate_perma_factors(df: pd.DataFrame) -> list:
     perma_df = []
-    perma_df.append(round((df["1"] + df["2"] + df["3"]) / 3, 2))
-    perma_df.append(round((df["4"] + df["5"] + df["6"]) / 3, 2))
-    perma_df.append(round((df["7"] + df["8"] + df["9"] + df["10"]) / 4, 2))
-    perma_df.append(round((df["11"] + df["12"] + df["13"]) / 3, 2))
-    perma_df.append(round((df["14"] + df["15"] + df["16"]) / 3, 2))
+    scores = (
+        [df["1"], df["2"], df["3"]],
+        [df["4"], df["5"], df["6"]],
+        [df["7"], df["8"], df["9"], df["10"]],
+        [df["11"], df["12"], df["13"]],
+        [df["14"], df["15"], df["16"]],
+    )
+    for score in scores:
+        perma_df.append(round(sum(score) / len(score), 2))
     return perma_df
 
 
@@ -158,10 +162,11 @@ def send_mail(
 
 def create_bar_plot(df: pd.DataFrame, title: str) -> Figure:
     labels = ("P", "E", "R", "M", "A")
-    fig, ax = plt.subplots()
     x = np.arange(1, 6)
     size = df.shape[0]
     width = 1 / (size * 2)
+
+    fig, ax = plt.subplots()
 
     for index, row in enumerate(df.itertuples()):
         values = [float(i) for i in row.values[1:-1].split(", ")]
@@ -174,8 +179,8 @@ def create_bar_plot(df: pd.DataFrame, title: str) -> Figure:
     ax.set_ylabel("PERMA Score")
     ax.set_xticks(x, labels)
     ax.legend()
-
     plt.show()
+
     return fig
 
 
@@ -204,11 +209,10 @@ def create_line_plot(df: pd.DataFrame, title: str) -> Figure:
         )
 
     fig, ax = plt.subplots()
+
     x = np.arange(1, len(df.values) + 1)
     y = df.values
     ax.plot(x, y)
-    ax.set_xlim(1, 16)
-    ax.set_ylim(0, 8)
 
     create_axhline(y, 0, 16, text="Average Score: ", color="black")
     create_axhline(y, 0, 3, text="P-Score: ")
@@ -217,12 +221,14 @@ def create_line_plot(df: pd.DataFrame, title: str) -> Figure:
     create_axhline(y, 10, 14, text="M-Score: ")
     create_axhline(y, 14, 16, text="A-Score: ")
 
+    ax.set_xlim(1, 16)
+    ax.set_ylim(0, 8)
     ax.set_title(title)
     ax.set_xlabel("PERMA Question")
     ax.set_ylabel("PERMA Score")
     ax.grid(True)
-
     plt.show()
+
     return fig
 
 
