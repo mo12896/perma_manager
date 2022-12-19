@@ -2,6 +2,7 @@ import os
 import smtplib
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Callable
 
@@ -20,7 +21,7 @@ IMG_DIR = Path.cwd() / "perma_scores"
 # Define the group ids and the date for which you want to fetch the data
 group_ids = [1]
 date = "2022-12-12"
-send: bool = False
+send = False
 aggregate_func = np.mean
 sender = "moritz96@mit.edu"
 smtp_server = "outgoing.mit.edu"
@@ -115,11 +116,24 @@ def save_perma_scores(
     date: str,
     filename: Path = Path("perma_scores.csv"),
 ) -> None:
-    data = pd.DataFrame({"group_id": group_id, "date": date, "values": [perma_score]})
+    def key_exists(key: str, filename: Path = Path("perma_scores.csv")) -> bool:
+        df = pd.read_csv(filename)
+        return df["key"].isin([key]).any()
+
+    key = f"{group_id}_{date}"
+    data = pd.DataFrame(
+        {
+            "key": key,
+            "group_id": group_id,
+            "date": date,
+            "values": [perma_score],
+        }
+    )
     if not filename.exists():
         data.to_csv(filename, mode="w", index=False, header=True)
         return
-    data.to_csv(filename, mode="a", index=False, header=False)
+    if not key_exists(key):
+        data.to_csv(filename, mode="a", index=False, header=False)
 
 
 def read_perma_scores(
@@ -134,18 +148,25 @@ def send_mail(
 ) -> None:
     # Create the container (outer) email message.
     msg = MIMEMultipart()
-    msg[
-        "Subject"
-    ] = "This is your Team PERMA score compared to the overall cohort for today!"
+    msg["Subject"] = "This is your Team PERMA score for today!"
     msg["From"] = sender
     msg["To"] = ", ".join(recipients)
     msg.preamble = "PERMA scores"
+
+    # Create the body of the message and attach to the container
+    with open("perma.txt", "r") as f:
+        email_msg = f.read()
+    body = MIMEText(email_msg)
+    msg.attach(body)
 
     # Open the files in binary mode.  Let the MIMEImage class automatically
     # guess the specific image type.
     for img in image_files:
         with open(img, "rb") as fp:
             img = MIMEImage(fp.read())
+            img.add_header(
+                "Content-Disposition", "attachment", filename="team_perma.png"
+            )
         msg.attach(img)
 
     # Send the email via the MIT SMTP server

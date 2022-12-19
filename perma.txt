@@ -1,0 +1,19 @@
+Hello there, 
+
+attached you will find your team's scores for the different PERMA pillars. 
+
+
+What is PERMA?
+
+PERMA is an acronym that stands for Positive Emotion, Engagement, Relationships, Meaning, and Accomplishment. It was introduced by Martin Seligman, a leading researcher in the field of positive psychology, as a framework for understanding well-being and happiness.
+
+According to Seligman's theory, well-being and happiness are not simply the absence of negative emotions or problems, but rather the presence of positive emotions, engagement in meaningful activities, strong and positive relationships, a sense of purpose and meaning in life, and a sense of accomplishment and progress.
+
+The PERMA model suggests that these five elements are interconnected and can influence each other. For example, engaging in meaningful activities may lead to a sense of accomplishment, which in turn may lead to increased positive emotions. Building strong and positive relationships may also contribute to a sense of meaning and purpose in life.
+
+The PERMA model can be used as a guide for improving well-being and happiness by focusing on building and enhancing these five elements in one's life. This can involve activities such as cultivating positive emotions, engaging in activities that are personally meaningful and fulfilling, building and maintaining strong relationships, finding a sense of purpose and meaning in life, and setting and achieving goals.
+
+
+How to read the image, we attached?
+
+The x-axis of the plot shows the different PERMA pillars (i.e. P, E, R, M, and A) for each day of the experiment. Each day is represented by a different color, which is indicated in the legend. The y-axis represents the overall team score for the different PERMA pillars on each day of the experiment. The plot allows you to compare the scores across the days of the experiment.
