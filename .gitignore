@@ -4,3 +4,4 @@
 .env
 perma_scores/
 *.xls
+*.csv

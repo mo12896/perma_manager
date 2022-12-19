@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
+from matplotlib.figure import Figure
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
@@ -94,6 +95,36 @@ def rename_df_columns(df: pd.DataFrame) -> None:
     )
 
 
+def aggregate_perma_factors(df: pd.DataFrame) -> list:
+    perma_df = []
+    perma_df.append(round((df["1"] + df["2"] + df["3"]) / 3, 2))
+    perma_df.append(round((df["4"] + df["5"] + df["6"]) / 3, 2))
+    perma_df.append(round((df["7"] + df["8"] + df["9"] + df["10"]) / 4, 2))
+    perma_df.append(round((df["11"] + df["12"] + df["13"]) / 3, 2))
+    perma_df.append(round((df["14"] + df["15"] + df["16"]) / 3, 2))
+    return perma_df
+
+
+def save_perma_scores(
+    perma_score: list,
+    group_id: str,
+    date: str,
+    filename: Path = Path("perma_scores.csv"),
+) -> None:
+    data = pd.DataFrame({"group_id": group_id, "date": date, "values": [perma_score]})
+    if not filename.exists():
+        data.to_csv(filename, mode="w", index=False, header=True)
+        return
+    data.to_csv(filename, mode="a", index=False, header=False)
+
+
+def read_perma_scores(
+    group_id: str, filename: Path = Path("perma_scores.csv")
+) -> pd.DataFrame:
+    df = pd.read_csv(filename)
+    return df.loc[df["group_id"] == group_id]
+
+
 def send_mail(
     image_files: list[Path], recipients: list[str], sender: str = sender
 ) -> None:
@@ -125,7 +156,30 @@ def send_mail(
         print(exc)
 
 
-def create_plot(df: pd.DataFrame, key: str, title: str) -> None:
+def create_bar_plot(df: pd.DataFrame, title: str) -> Figure:
+    labels = ("P", "E", "R", "M", "A")
+    fig, ax = plt.subplots()
+    x = np.arange(1, 6)
+    size = df.shape[0]
+    width = 1 / (size * 2)
+
+    for index, row in enumerate(df.itertuples()):
+        values = [float(i) for i in row.values[1:-1].split(", ")]
+        rects = ax.bar(
+            x - width * (size - index - 1), values, width, label=f"{row.date}"
+        )
+        ax.bar_label(rects, padding=3)
+
+    ax.set_title(title)
+    ax.set_ylabel("PERMA Score")
+    ax.set_xticks(x, labels)
+    ax.legend()
+
+    plt.show()
+    return fig
+
+
+def create_line_plot(df: pd.DataFrame, title: str) -> Figure:
     def create_axhline(
         values: np.ndarray,
         lowerbound: int,
@@ -153,8 +207,8 @@ def create_plot(df: pd.DataFrame, key: str, title: str) -> None:
     x = np.arange(1, len(df.values) + 1)
     y = df.values
     ax.plot(x, y)
-    plt.xlim(1, 16)
-    plt.ylim(0, 8)
+    ax.set_xlim(1, 16)
+    ax.set_ylim(0, 8)
 
     create_axhline(y, 0, 16, text="Average Score: ", color="black")
     create_axhline(y, 0, 3, text="P-Score: ")
@@ -163,13 +217,20 @@ def create_plot(df: pd.DataFrame, key: str, title: str) -> None:
     create_axhline(y, 10, 14, text="M-Score: ")
     create_axhline(y, 14, 16, text="A-Score: ")
 
-    plt.title(title)
-    plt.xlabel("PERMA Question")
-    plt.ylabel("PERMA Score")
-    plt.grid(True)
-    plt.show()
+    ax.set_title(title)
+    ax.set_xlabel("PERMA Question")
+    ax.set_ylabel("PERMA Score")
+    ax.grid(True)
 
-    fig.savefig(str(IMG_DIR / f"{key}.png"))
+    plt.show()
+    return fig
+
+
+def save_figure(fig: Figure, group_id: str) -> None:
+    foldername = IMG_DIR / f"{date}"
+    if not foldername.exists():
+        foldername.mkdir(parents=True, exist_ok=True)
+    fig.savefig(str(foldername / f"{group_id}.png"))
 
 
 def main():
@@ -189,34 +250,43 @@ def main():
     df = extract_date_from_timestamp(df)
     rename_df_columns(df)
 
-    cohort_perma = pd.DataFrame()
+    # cohort_perma = pd.DataFrame()
 
     # Compute Team PERMA and create plot
     for g_id in group_ids:
-        key = f"group_{g_id}_{date}"
+        group_id = f"group_{g_id}"
 
         team_perma = compute_perma(
             data=df[(df["Group_IDs"] == g_id) & (df["Date"] == date)].iloc[:, 4:20],
             aggregate_func=aggregate_func,
         )
-        cohort_perma = pd.concat([cohort_perma, team_perma.to_frame().T])
-        create_plot(team_perma, key, title=f"Your overall Team PERMA score on {date}")
+        team_perma = aggregate_perma_factors(team_perma)
+
+        save_perma_scores(team_perma, group_id, date)
+        overall_team_perma = read_perma_scores(group_id)
+
+        fig = create_bar_plot(
+            overall_team_perma,
+            title=f"Your overall Team PERMA score on {date}",
+        )
+        save_figure(fig, group_id)
+
+        # cohort_perma = pd.concat([cohort_perma, team_perma.to_frame().T])
 
     # Compute the overall PERMA
-    key = f"cohort_{date}"
-    overall_perma = compute_perma(data=cohort_perma, aggregate_func=aggregate_func)
-    create_plot(overall_perma, key, title=f"The overall cohort PERMA score on {date}")
+    # key = f"cohort_{date}"
+    # overall_perma = compute_perma(data=cohort_perma, aggregate_func=aggregate_func)
+    # create_plot(overall_perma, key, title=f"The overall cohort PERMA score on {date}")
 
     # Send email to the recipients
     if send:
-        cohort_perma = IMG_DIR / f"cohort_{date}.png"
+        # cohort_perma = IMG_DIR / f"cohort_{date}.png"
 
         for g_id in group_ids:
-            key = f"group_{g_id}_{date}"
-            team_perma = IMG_DIR / f"{key}.png"
+            team_perma = IMG_DIR / date / f"group_{g_id}.png"
 
             send_mail(
-                image_files=[team_perma, cohort_perma],
+                image_files=[team_perma],
                 recipients=get_email_recipients(df, g_id),
             )
 
