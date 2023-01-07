@@ -1,6 +1,6 @@
 *.json
-*.~lock.groups_ids.xls#
 *.~lock.perma_data.xls#
+*.~lock.group_ids.xls#
 .env
 perma_scores/
 *.xls

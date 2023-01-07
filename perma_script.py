@@ -19,8 +19,9 @@ pd.set_option("display.max_columns", 6)
 # Constants
 IMG_DIR = Path.cwd() / "perma_scores"
 # Define the group ids and the date for which you want to fetch the data
-group_ids = [1]
-date = "2022-12-12"
+group_ids = [1, 2]
+# year-month-day
+date = "2023-01-03"
 send = False
 aggregate_func = np.mean
 sender = "moritz96@mit.edu"
@@ -283,10 +284,12 @@ def main():
     for g_id in group_ids:
         group_id = f"group_{g_id}"
 
+        # Note: select the correct column indices from the table!
         team_perma = compute_perma(
-            data=df[(df["Group_IDs"] == g_id) & (df["Date"] == date)].iloc[:, 4:20],
+            data=df[(df["Group_IDs"] == g_id) & (df["Date"] == date)].iloc[:, 6:22],
             aggregate_func=aggregate_func,
         )
+        print(team_perma)
         team_perma = aggregate_perma_factors(team_perma)
 
         save_perma_scores(team_perma, group_id, date)
