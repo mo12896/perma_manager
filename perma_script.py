@@ -19,9 +19,9 @@ pd.set_option("display.max_columns", 6)
 # Constants
 IMG_DIR = Path.cwd() / "perma_scores"
 # Define the group ids and the date for which you want to fetch the data
-group_ids = [1, 2]
+group_ids = [1]
 # year-month-day
-date = "2023-01-03"
+date = "2023-01-08"
 send = False
 last_day = True
 aggregate_func = np.mean
@@ -254,28 +254,46 @@ def create_line_plot(df: pd.DataFrame, title: str) -> Figure:
 
 
 def create_box_plot(dataframes: list[pd.DataFrame], title: str) -> Figure:
-    def compute_cohort_permas(dataframes: list[pd.DataFrame]) -> np.ndarray:
+    def read_cohort_permas(dataframes: list[pd.DataFrame]) -> np.ndarray:
         cohort_permas = []
         for df in dataframes:
             group_permas = []
             for _, row in enumerate(df.itertuples()):
                 values = [float(i) for i in row.values[1:-1].split(", ")]
                 group_permas.append(values)
-            group_perma = np.array(group_permas).mean(axis=0)
-            cohort_permas.append(group_perma)
+            cohort_permas.append(group_permas)
 
         return np.array(cohort_permas)
 
+    def extract_daily_cohort_perma(cohort_permas: np.ndarray, row: int) -> list:
+        daily_cohort_perma = []
+        for i in range(5):
+            perma_factor = []
+            for group in cohort_permas:
+                perma_factor.append(group[row, i])
+            daily_cohort_perma.append(perma_factor)
+        return daily_cohort_perma
+
     fig, ax = plt.subplots()
 
-    x = np.arange(1, 6)
-    cohort_permas = compute_cohort_permas(dataframes)
+    labels = ("P", "E", "R", "M", "A")
+    cohort_permas = read_cohort_permas(dataframes)
 
-    data = [cohort_permas[:, i] for i in range(5)]
-    ax.boxplot(data)
+    # TODO: Enable this for 3 days!
+    data_0 = extract_daily_cohort_perma(cohort_permas, 0)
+    data_1 = extract_daily_cohort_perma(cohort_permas, 1)
+    # data_2 = get_daily_cohort_perma(cohort_permas, 2)
+
+    ax.boxplot(
+        data_0, positions=np.array(range(len(data_0))) * 2.0 - 0.4, sym="", widths=0.6
+    )
+    ax.boxplot(
+        data_1, positions=np.array(range(len(data_1))) * 2.0 + 0.4, sym="", widths=0.6
+    )
+    # ax.boxplot(data_2)
 
     ax.set_title(title)
-    ax.set_xticks(x, ("P", "E", "R", "M", "A"))
+    ax.set_xticks(range(0, len(labels) * 2, 2), labels)
     ax.set_ylabel("PERMA Score")
 
     return fig
@@ -329,8 +347,6 @@ def main():
 
     # Send email to the recipients
     if send:
-        # cohort_perma = IMG_DIR / f"cohort_{date}.png"
-
         for g_id in group_ids:
             team_perma = IMG_DIR / date / f"group_{g_id}.png"
 
