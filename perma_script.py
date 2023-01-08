@@ -4,7 +4,7 @@ from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,6 +23,7 @@ group_ids = [1, 2]
 # year-month-day
 date = "2023-01-03"
 send = False
+last_day = True
 aggregate_func = np.mean
 sender = "moritz96@mit.edu"
 smtp_server = "outgoing.mit.edu"
@@ -138,10 +139,10 @@ def save_perma_scores(
 
 
 def read_perma_scores(
-    group_id: str, filename: Path = Path("perma_scores.csv")
-) -> pd.DataFrame:
+    group_ids: list[str], filename: Path = Path("perma_scores.csv")
+) -> list[pd.DataFrame]:
     df = pd.read_csv(filename)
-    return df.loc[df["group_id"] == group_id]
+    return [df.loc[df["group_id"] == group_id] for group_id in group_ids]
 
 
 def send_mail(
@@ -201,7 +202,6 @@ def create_bar_plot(df: pd.DataFrame, title: str) -> Figure:
     ax.set_ylabel("PERMA Score")
     ax.set_xticks(x, labels)
     ax.legend()
-    plt.show()
 
     return fig
 
@@ -249,13 +249,39 @@ def create_line_plot(df: pd.DataFrame, title: str) -> Figure:
     ax.set_xlabel("PERMA Question")
     ax.set_ylabel("PERMA Score")
     ax.grid(True)
-    plt.show()
 
     return fig
 
 
-def save_figure(fig: Figure, group_id: str) -> None:
-    foldername = IMG_DIR / f"{date}"
+def create_box_plot(dataframes: list[pd.DataFrame], title: str) -> Figure:
+    def compute_cohort_permas(dataframes: list[pd.DataFrame]) -> np.ndarray:
+        cohort_permas = []
+        for df in dataframes:
+            group_permas = []
+            for _, row in enumerate(df.itertuples()):
+                values = [float(i) for i in row.values[1:-1].split(", ")]
+                group_permas.append(values)
+            group_perma = np.array(group_permas).mean(axis=0)
+            cohort_permas.append(group_perma)
+
+        return np.array(cohort_permas)
+
+    fig, ax = plt.subplots()
+
+    x = np.arange(1, 6)
+    cohort_permas = compute_cohort_permas(dataframes)
+
+    data = [cohort_permas[:, i] for i in range(5)]
+    ax.boxplot(data)
+
+    ax.set_title(title)
+    ax.set_xticks(x, ("P", "E", "R", "M", "A"))
+    ax.set_ylabel("PERMA Score")
+
+    return fig
+
+
+def save_figure(fig: Figure, group_id: str, foldername: Path) -> None:
     if not foldername.exists():
         foldername.mkdir(parents=True, exist_ok=True)
     fig.savefig(str(foldername / f"{group_id}.png"))
@@ -289,24 +315,17 @@ def main():
             data=df[(df["Group_IDs"] == g_id) & (df["Date"] == date)].iloc[:, 6:22],
             aggregate_func=aggregate_func,
         )
-        print(team_perma)
         team_perma = aggregate_perma_factors(team_perma)
 
         save_perma_scores(team_perma, group_id, date)
-        overall_team_perma = read_perma_scores(group_id)
+        overall_team_perma = read_perma_scores([group_id])[0]
 
         fig = create_bar_plot(
             overall_team_perma,
             title=f"Your overall Team PERMA score on {date}",
         )
-        save_figure(fig, group_id)
-
-        # cohort_perma = pd.concat([cohort_perma, team_perma.to_frame().T])
-
-    # Compute the overall PERMA
-    # key = f"cohort_{date}"
-    # overall_perma = compute_perma(data=cohort_perma, aggregate_func=aggregate_func)
-    # create_plot(overall_perma, key, title=f"The overall cohort PERMA score on {date}")
+        folder = IMG_DIR / f"{date}"
+        save_figure(fig, group_id, folder)
 
     # Send email to the recipients
     if send:
@@ -319,6 +338,17 @@ def main():
                 image_files=[team_perma],
                 recipients=get_email_recipients(df, g_id),
             )
+
+    if last_day:
+        overall_cohort_perma = read_perma_scores(
+            [f"group_{g_id}" for g_id in group_ids]
+        )
+        fig = create_box_plot(
+            overall_cohort_perma,
+            title=f"The overall cohort PERMA score during the Intensive Week 2023",
+        )
+        folder = Path.cwd()
+        save_figure(fig, "cohort_perma", folder)
 
 
 if __name__ == "__main__":
