@@ -379,10 +379,11 @@ def main():
         for g_id in group_ids:
             team_perma = IMG_DIR / date / f"group_{g_id}.png"
 
-            send_mail(
-                image_files=[team_perma],
-                recipients=get_email_recipients(df, g_id),
-            )
+            if team_perma.exists():
+                send_mail(
+                    image_files=[team_perma],
+                    recipients=get_email_recipients(df, g_id),
+                )
 
     if last_day:
         overall_cohort_perma = read_perma_scores(
