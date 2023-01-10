@@ -217,6 +217,7 @@ def create_bar_plot(df: pd.DataFrame, title: str) -> Union[Figure, None]:
     for index, row in enumerate(df.itertuples()):
         values = [float(i) for i in row.values[1:-1].split(", ")]
 
+        # Check if there are only nan values in the data
         values_check = np.array([np.isnan(i) for i in values])
         if values_check.all():
             return None
@@ -349,8 +350,6 @@ def main():
     df = join_two_dataframes(perma_df, group_id_df)
     df = extract_date_from_timestamp(df)
     rename_df_columns(df)
-
-    # cohort_perma = pd.DataFrame()
 
     # Compute Team PERMA and create plot
     for g_id in group_ids:
