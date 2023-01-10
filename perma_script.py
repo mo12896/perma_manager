@@ -19,11 +19,34 @@ pd.set_option("display.max_columns", 6)
 # Constants
 IMG_DIR = Path.cwd() / "perma_scores"
 # Define the group ids and the date for which you want to fetch the data
-group_ids = [1]
+group_ids = [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+]
 # year-month-day
-date = "2023-01-08"
+date = "2023-01-10"
 send = False
-last_day = True
+last_day = False
 aggregate_func = np.mean
 sender = "moritz96@mit.edu"
 smtp_server = "outgoing.mit.edu"
@@ -183,7 +206,7 @@ def send_mail(
         print(exc)
 
 
-def create_bar_plot(df: pd.DataFrame, title: str) -> Figure:
+def create_bar_plot(df: pd.DataFrame, title: str) -> Union[Figure, None]:
     labels = ("P", "E", "R", "M", "A")
     x = np.arange(1, 6)
     size = df.shape[0]
@@ -193,6 +216,11 @@ def create_bar_plot(df: pd.DataFrame, title: str) -> Figure:
 
     for index, row in enumerate(df.itertuples()):
         values = [float(i) for i in row.values[1:-1].split(", ")]
+
+        values_check = np.array([np.isnan(i) for i in values])
+        if values_check.all():
+            return None
+
         rects = ax.bar(
             x - width * (size - index - 1), values, width, label=f"{row.date}"
         )
@@ -342,8 +370,10 @@ def main():
             overall_team_perma,
             title=f"Your overall Team PERMA score on {date}",
         )
-        folder = IMG_DIR / f"{date}"
-        save_figure(fig, group_id, folder)
+
+        if fig:
+            folder = IMG_DIR / f"{date}"
+            save_figure(fig, group_id, folder)
 
     # Send email to the recipients
     if send:
