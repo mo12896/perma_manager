@@ -200,7 +200,7 @@ def send_mail(
         s = smtplib.SMTP(host=smtp_server)
         s.sendmail(sender, recipients, msg.as_string())
         s.quit()
-        print("Successfully sent email!")
+        print(f"Successfully sent email with image: {image_files}!")
     except smtplib.SMTPException as exc:
         print("Error sending email!")
         print(exc)
