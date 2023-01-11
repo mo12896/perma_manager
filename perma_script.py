@@ -225,7 +225,10 @@ def create_bar_plot(df: pd.DataFrame, title: str) -> Union[Figure, None]:
         rects = ax.bar(
             x - width * (size - index - 1), values, width, label=f"{row.date}"
         )
+
         ax.bar_label(rects, padding=3)
+        ax.plot(np.arange(1, 6), [7] * 5, color="red", lw=2)
+        ax.text(4, 7.05, "Upper Limit", color="red")
 
     ax.set_title(title)
     ax.set_ylabel("PERMA Score")
