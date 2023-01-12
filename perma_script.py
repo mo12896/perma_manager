@@ -44,7 +44,7 @@ group_ids = [
     22,
 ]
 # year-month-day
-date = "2023-01-10"
+date = "2023-01-11"
 send = False
 last_day = False
 aggregate_func = np.mean
@@ -292,17 +292,24 @@ def create_box_plot(dataframes: list[pd.DataFrame], title: str) -> Figure:
             group_permas = []
             for _, row in enumerate(df.itertuples()):
                 values = [float(i) for i in row.values[1:-1].split(", ")]
-                group_permas.append(values)
+
+                values_check = np.array([np.isnan(i) for i in values])
+                if not values_check.any():
+                    group_permas.append(values)
+                else:
+                    group_permas.append([])
+
             cohort_permas.append(group_permas)
 
-        return np.array(cohort_permas)
+        return np.array(cohort_permas, dtype=object)
 
     def extract_daily_cohort_perma(cohort_permas: np.ndarray, row: int) -> list:
         daily_cohort_perma = []
-        for i in range(5):
+        for col in range(5):
             perma_factor = []
             for group in cohort_permas:
-                perma_factor.append(group[row, i])
+                if len(group[row]) > 0:
+                    perma_factor.append(group[row][col])
             daily_cohort_perma.append(perma_factor)
         return daily_cohort_perma
 
