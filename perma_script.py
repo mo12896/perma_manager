@@ -46,7 +46,7 @@ group_ids = [
 # year-month-day
 date = "2023-01-11"
 send = False
-last_day = False
+last_day = True
 aggregate_func = np.mean
 sender = "moritz96@mit.edu"
 smtp_server = "outgoing.mit.edu"
@@ -303,36 +303,41 @@ def create_box_plot(dataframes: list[pd.DataFrame], title: str) -> Figure:
 
         return np.array(cohort_permas, dtype=object)
 
-    def extract_daily_cohort_perma(cohort_permas: np.ndarray, row: int) -> list:
-        daily_cohort_perma = []
-        for col in range(5):
-            perma_factor = []
-            for group in cohort_permas:
-                if len(group[row]) > 0:
-                    perma_factor.append(group[row][col])
-            daily_cohort_perma.append(perma_factor)
-        return daily_cohort_perma
+    def plot_daily_cohort_perma(
+        cohort_permas: np.ndarray, row: int, box_color: str, offset: float
+    ) -> None:
+        def extract_daily_cohort_perma(cohort_permas: np.ndarray, row: int) -> list:
+            daily_cohort_perma = []
+            for col in range(5):
+                perma_factor = []
+                for group in cohort_permas:
+                    if len(group[row]) > 0:
+                        perma_factor.append(group[row][col])
+                daily_cohort_perma.append(perma_factor)
+            return daily_cohort_perma
+
+        daily_cohort_perma = extract_daily_cohort_perma(cohort_permas, row)
+        ax.boxplot(
+            daily_cohort_perma,
+            positions=np.array(range(len(daily_cohort_perma))) * 2.0 - offset,
+            sym="",
+            widths=0.3,
+            patch_artist=True,
+            boxprops=dict(facecolor=box_color),
+            medianprops=dict(color="black"),
+        )
 
     fig, ax = plt.subplots()
 
     labels = ("P", "E", "R", "M", "A")
     cohort_permas = read_cohort_permas(dataframes)
 
-    # TODO: Enable this for 3 days!
-    data_0 = extract_daily_cohort_perma(cohort_permas, 0)
-    data_1 = extract_daily_cohort_perma(cohort_permas, 1)
-    # data_2 = get_daily_cohort_perma(cohort_permas, 2)
-
-    ax.boxplot(
-        data_0, positions=np.array(range(len(data_0))) * 2.0 - 0.4, sym="", widths=0.6
-    )
-    ax.boxplot(
-        data_1, positions=np.array(range(len(data_1))) * 2.0 + 0.4, sym="", widths=0.6
-    )
-    # ax.boxplot(data_2)
+    plot_daily_cohort_perma(cohort_permas, 0, "pink", 0.45)
+    plot_daily_cohort_perma(cohort_permas, 1, "lightblue", 0.15)
 
     ax.set_title(title)
     ax.set_xticks(range(0, len(labels) * 2, 2), labels)
+    ax.xaxis.set_tick_params(labelsize=20)
     ax.set_ylabel("PERMA Score")
 
     return fig
