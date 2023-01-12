@@ -44,7 +44,7 @@ group_ids = [
     22,
 ]
 # year-month-day
-date = "2023-01-11"
+date = "2023-01-12"
 send = False
 last_day = True
 aggregate_func = np.mean
@@ -332,8 +332,9 @@ def create_box_plot(dataframes: list[pd.DataFrame], title: str) -> Figure:
     labels = ("P", "E", "R", "M", "A")
     cohort_permas = read_cohort_permas(dataframes)
 
-    plot_daily_cohort_perma(cohort_permas, 0, "pink", 0.45)
-    plot_daily_cohort_perma(cohort_permas, 1, "lightblue", 0.15)
+    plot_daily_cohort_perma(cohort_permas, 0, "pink", 0.3)
+    plot_daily_cohort_perma(cohort_permas, 1, "lightblue", 0.0)
+    plot_daily_cohort_perma(cohort_permas, 2, "lightgreen", -0.3)
 
     ax.set_title(title)
     ax.set_xticks(range(0, len(labels) * 2, 2), labels)
