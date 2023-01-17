@@ -6,6 +6,7 @@ from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Callable, Union
 
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -44,7 +45,7 @@ group_ids = [
     22,
 ]
 # year-month-day
-date = "2023-01-12"
+date = "2023-01-13"
 send = False
 last_day = True
 aggregate_func = np.mean
@@ -122,7 +123,6 @@ def rename_df_columns(df: pd.DataFrame) -> None:
 
 
 def aggregate_perma_factors(df: pd.DataFrame) -> list:
-    perma_df = []
     scores = (
         [df["1"], df["2"], df["3"]],
         [df["4"], df["5"], df["6"]],
@@ -130,8 +130,7 @@ def aggregate_perma_factors(df: pd.DataFrame) -> list:
         [df["11"], df["12"], df["13"]],
         [df["14"], df["15"], df["16"]],
     )
-    for score in scores:
-        perma_df.append(round(sum(score) / len(score), 2))
+    perma_df = [round(sum(score) / len(score), 2) for score in scores]
     return perma_df
 
 
@@ -141,9 +140,6 @@ def save_perma_scores(
     date: str,
     filename: Path = Path("perma_scores.csv"),
 ) -> None:
-    def key_exists(key: str, filename: Path = Path("perma_scores.csv")) -> bool:
-        df = pd.read_csv(filename)
-        return df["key"].isin([key]).any()
 
     key = f"{group_id}_{date}"
     data = pd.DataFrame(
@@ -156,16 +152,17 @@ def save_perma_scores(
     )
     if not filename.exists():
         data.to_csv(filename, mode="w", index=False, header=True)
-        return
-    if not key_exists(key):
-        data.to_csv(filename, mode="a", index=False, header=False)
+    else:
+        df = pd.read_csv(filename)
+        if key not in df["key"].values:
+            data.to_csv(filename, mode="a", index=False, header=False)
 
 
 def read_perma_scores(
     group_ids: list[str], filename: Path = Path("perma_scores.csv")
 ) -> list[pd.DataFrame]:
     df = pd.read_csv(filename)
-    return [df.loc[df["group_id"] == group_id] for group_id in group_ids]
+    return [df[df["group_id"] == group_id] for group_id in group_ids]
 
 
 def send_mail(
@@ -195,12 +192,10 @@ def send_mail(
         msg.attach(img)
 
     # Send the email via the MIT SMTP server
-    # (http://kb.mit.edu/confluence/pages/viewpage.action?pageId=155282952)
     try:
-        s = smtplib.SMTP(host=smtp_server)
-        s.sendmail(sender, recipients, msg.as_string())
-        s.quit()
-        print(f"Successfully sent email with image: {image_files}!")
+        with smtplib.SMTP(host=smtp_server) as s:
+            s.sendmail(sender, recipients, msg.as_string())
+            print(f"Successfully sent email with image: {image_files}!")
     except smtplib.SMTPException as exc:
         print("Error sending email!")
         print(exc)
@@ -218,8 +213,7 @@ def create_bar_plot(df: pd.DataFrame, title: str) -> Union[Figure, None]:
         values = [float(i) for i in row.values[1:-1].split(", ")]
 
         # Check if there are only nan values in the data
-        values_check = np.array([np.isnan(i) for i in values])
-        if values_check.all():
+        if np.isnan(values).all():
             return None
 
         rects = ax.bar(
@@ -289,15 +283,11 @@ def create_box_plot(dataframes: list[pd.DataFrame], title: str) -> Figure:
     def read_cohort_permas(dataframes: list[pd.DataFrame]) -> np.ndarray:
         cohort_permas = []
         for df in dataframes:
+
             group_permas = []
             for _, row in enumerate(df.itertuples()):
                 values = [float(i) for i in row.values[1:-1].split(", ")]
-
-                values_check = np.array([np.isnan(i) for i in values])
-                if not values_check.any():
-                    group_permas.append(values)
-                else:
-                    group_permas.append([])
+                group_permas.append(values if not np.isnan(values).any() else [])
 
             cohort_permas.append(group_permas)
 
@@ -306,17 +296,10 @@ def create_box_plot(dataframes: list[pd.DataFrame], title: str) -> Figure:
     def plot_daily_cohort_perma(
         cohort_permas: np.ndarray, row: int, box_color: str, offset: float
     ) -> None:
-        def extract_daily_cohort_perma(cohort_permas: np.ndarray, row: int) -> list:
-            daily_cohort_perma = []
-            for col in range(5):
-                perma_factor = []
-                for group in cohort_permas:
-                    if len(group[row]) > 0:
-                        perma_factor.append(group[row][col])
-                daily_cohort_perma.append(perma_factor)
-            return daily_cohort_perma
-
-        daily_cohort_perma = extract_daily_cohort_perma(cohort_permas, row)
+        daily_cohort_perma = [
+            [group[row][col] for group in cohort_permas if len(group[row]) > 0]
+            for col in range(5)
+        ]
         ax.boxplot(
             daily_cohort_perma,
             positions=np.array(range(len(daily_cohort_perma))) * 2.0 - offset,
@@ -332,22 +315,30 @@ def create_box_plot(dataframes: list[pd.DataFrame], title: str) -> Figure:
     labels = ("P", "E", "R", "M", "A")
     cohort_permas = read_cohort_permas(dataframes)
 
-    plot_daily_cohort_perma(cohort_permas, 0, "pink", 0.3)
-    plot_daily_cohort_perma(cohort_permas, 1, "lightblue", 0.0)
-    plot_daily_cohort_perma(cohort_permas, 2, "lightgreen", -0.3)
+    colors = ["pink", "lightblue", "lightgreen", "lightyellow"]
+    offsets = [0.45, 0.15, -0.15, -0.45]
+
+    for i, (color, offset) in enumerate(zip(colors, offsets)):
+        plot_daily_cohort_perma(cohort_permas, i, color, offset)
 
     ax.set_title(title)
     ax.set_xticks(range(0, len(labels) * 2, 2), labels)
     ax.xaxis.set_tick_params(labelsize=20)
     ax.set_ylabel("PERMA Score")
 
+    handles = [
+        mpatches.Patch(color=color, label=f"Day {i + 1}")
+        for i, color in enumerate(colors)
+    ]
+
+    ax.legend(handles=handles, loc="lower right", fontsize=10)
+
     return fig
 
 
 def save_figure(fig: Figure, group_id: str, foldername: Path) -> None:
-    if not foldername.exists():
-        foldername.mkdir(parents=True, exist_ok=True)
-    fig.savefig(str(foldername / f"{group_id}.png"))
+    foldername.mkdir(parents=True, exist_ok=True)
+    fig.savefig(foldername / f"{group_id}.png")
 
 
 def main():
@@ -389,6 +380,7 @@ def main():
         if fig:
             folder = IMG_DIR / f"{date}"
             save_figure(fig, group_id, folder)
+            plt.close(fig)
 
     # Send email to the recipients
     if send:
@@ -411,6 +403,7 @@ def main():
         )
         folder = Path.cwd()
         save_figure(fig, "cohort_perma", folder)
+        plt.close(fig)
 
 
 if __name__ == "__main__":
