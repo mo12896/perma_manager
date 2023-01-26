@@ -1,3 +1,28 @@
+# To run this script, you need a config.json file in the same folder as the script.
+# It should follow this template:
+# {
+#    "teams": [
+#        {
+#            "name": "team_xx",
+#            "days": [
+#                {
+#                    "date": "Year-Month-Day",
+#                    "clips": [
+#                        {
+#                            "input_folder": path to the folder where the video is stored,
+#                            "input_video": name of the video,
+#                            "output_folder": path to the folder where the video will be stored,
+#                            "start_times": list of start times in seconds,
+#                            "end_times": list of end times in seconds
+#                        },
+#                    ],
+#                }
+#            ]
+#        }
+#    ]
+# }
+#
+
 from pathlib import Path
 from moviepy.editor import VideoFileClip
 import json
