@@ -53,7 +53,9 @@ def cut_video(
             clip = VideoFileClip(str(input_video)).subclip(start, end)
             clip_path = out_folder / f"clip_{video_idx}_{start}_{end}.mp4"
             if not clip_path.exists():
-                clip.write_videofile(str(clip_path))
+                #clip.write_videofile(str(clip_path))
+                clip_25fps = clip.set_fps(25)
+                clip_25fps.write_videofile(str(clip_path))
         except Exception as e:
             print(f"Error: {e}")
 
