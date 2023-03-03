@@ -1,5 +1,8 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from matplotlib import patches
+from matplotlib.figure import Figure
 
 
 def standardize_dataframe(df, columns=None):
@@ -48,6 +51,41 @@ def plot_daily_email_counts(df):
 def plot_total_email_counts(df):
     email_counts = df["E-Mail-Adresse"].value_counts()
     email_counts.plot(kind="barh")
+    plt.show()
+    
+    
+def plot_perma(dataframe: pd.DataFrame, title: str) -> Figure:
+    fig, ax = plt.subplots()
+
+    labels = ["P", "E", "R", "M", "A"]
+    days = ["Day1", "Day2", "Day3", "Day4"]
+    colors = ["pink", "lightblue", "lightgreen", "lightyellow"]
+    offsets = [0.45, 0.15, -0.15, -0.45]
+
+    for i, day in enumerate(range(10, 14)):
+        data = []
+        for label in labels:
+            data.append(dataframe[dataframe.Day == day][label].values)
+        ax.boxplot(
+            data,
+            positions=np.array(range(len(data))) * 2.0 - offsets[i],
+            sym="",
+            widths=0.3,
+            patch_artist=True,
+            boxprops=dict(facecolor=colors[i]),
+            medianprops=dict(color="black"),
+        )
+
+    ax.set_title(title)
+    ax.set_xticks(range(0, len(labels) * 2, 2), labels)
+    ax.xaxis.set_tick_params(labelsize=20)
+    ax.set_ylabel("PERMA Score")
+
+    handles = [
+        patches.Patch(color=color, label=label) for label, color in zip(days, colors)
+    ]
+
+    ax.legend(handles=handles, loc="lower right", fontsize=10)
     plt.show()
 
 
@@ -166,3 +204,4 @@ if __name__ == "__main__":
 
     plot_total_email_counts(df_merged)
     plot_daily_email_counts(df_merged)
+    plot_perma(df_merged, "PERMA Scores")
